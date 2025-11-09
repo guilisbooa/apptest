@@ -1,233 +1,274 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
-import { toast } from "sonner";
 import { useState } from "react";
+import { toast } from "sonner";
+import { Id } from "../../convex/_generated/dataModel";
 
 interface CartProps {
-  selectedAddress?: any;
-  onOrderComplete: () => void;
+  onBack: () => void;
 }
 
-export function Cart({ selectedAddress, onOrderComplete }: CartProps) {
-  const cartItems = useQuery(api.cart.getCart);
+export function Cart({ onBack }: CartProps) {
+  const cartItems = useQuery(api.cart.getCartItems) || [];
+  const addresses = useQuery(api.addresses.getUserAddresses) || [];
   const updateQuantity = useMutation(api.cart.updateQuantity);
+  const removeFromCart = useMutation(api.cart.removeFromCart);
+  const clearCart = useMutation(api.cart.clearCart);
   const createOrder = useMutation(api.orders.createOrder);
-  const addresses = useQuery(api.addresses.getUserAddresses);
-  const [isOrdering, setIsOrdering] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState("credit_card");
 
-  const handleUpdateQuantity = async (itemId: Id<"cartItems">, newQuantity: number) => {
+  const [selectedAddress, setSelectedAddress] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("credit_card");
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+
+  const handleUpdateQuantity = async (itemId: Id<"cartItems">, quantity: number) => {
+    if (quantity <= 0) {
+      await removeFromCart({ itemId });
+      return;
+    }
+    
     try {
-      await updateQuantity({ itemId, quantity: newQuantity });
+      await updateQuantity({ itemId, quantity });
     } catch (error) {
       toast.error("Erro ao atualizar quantidade");
     }
   };
 
-  const getDeliveryAddress = () => {
-    if (selectedAddress) {
-      if (selectedAddress.isCurrentLocation) {
-        return "Localização atual";
-      }
-      return `${selectedAddress.street}, ${selectedAddress.number}${selectedAddress.complement ? `, ${selectedAddress.complement}` : ""}, ${selectedAddress.neighborhood}, ${selectedAddress.city} - ${selectedAddress.state}`;
+  const handleRemoveItem = async (itemId: Id<"cartItems">) => {
+    try {
+      await removeFromCart({ itemId });
+      toast.success("Item removido do carrinho");
+    } catch (error) {
+      toast.error("Erro ao remover item");
     }
-    
-    // Use default address if available
-    const defaultAddress = addresses?.find(addr => addr.isDefault);
-    if (defaultAddress) {
-      return `${defaultAddress.street}, ${defaultAddress.number}${defaultAddress.complement ? `, ${defaultAddress.complement}` : ""}, ${defaultAddress.neighborhood}, ${defaultAddress.city} - ${defaultAddress.state}`;
-    }
-    
-    return "";
   };
 
-  const handleCreateOrder = async () => {
-    if (!cartItems || cartItems.length === 0) {
+  const handleCheckout = async () => {
+    if (cartItems.length === 0) {
       toast.error("Carrinho vazio");
       return;
     }
 
-    const deliveryAddress = getDeliveryAddress();
-    if (!deliveryAddress) {
+    if (!selectedAddress) {
       toast.error("Selecione um endereço de entrega");
       return;
     }
 
-    setIsOrdering(true);
+    setIsCheckingOut(true);
+    
     try {
-      const restaurant = cartItems[0].restaurant;
-      const items = cartItems.map(item => ({
-        productId: item.productId,
-        name: item.product?.name || "",
-        price: item.price,
-        quantity: item.quantity,
-      }));
-
-      const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-      const deliveryFee = restaurant?.deliveryFee || 0;
-      const total = subtotal + deliveryFee;
-
+      const address = addresses.find(addr => addr._id === selectedAddress);
+      const deliveryAddress = `${address?.street}, ${address?.number}, ${address?.neighborhood}, ${address?.city} - ${address?.state}`;
+      
       await createOrder({
+        items: cartItems.map(item => ({
+          productId: item.productId,
+          name: item.name || "Produto",
+          price: item.price,
+          quantity: item.quantity,
+        })),
         restaurantId: cartItems[0].restaurantId,
-        items,
-        total,
-        deliveryFee,
         deliveryAddress,
         paymentMethod,
       });
 
+      await clearCart();
       toast.success("Pedido realizado com sucesso!");
-      onOrderComplete();
+      onBack();
     } catch (error) {
-      toast.error("Erro ao criar pedido");
+      toast.error("Erro ao finalizar pedido");
     } finally {
-      setIsOrdering(false);
+      setIsCheckingOut(false);
     }
   };
 
-  if (!cartItems) {
-    return (
-      <div className="flex justify-center items-center min-h-[200px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
-      </div>
-    );
-  }
+  const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const deliveryFee = cartItems.length > 0 ? 5.99 : 0;
+  const total = subtotal + deliveryFee;
 
   if (cartItems.length === 0) {
     return (
       <div className="text-center py-12">
-        <span className="text-6xl mb-4 block">🛒</span>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Carrinho vazio</h2>
-        <p className="text-gray-600">Adicione alguns produtos para continuar</p>
+        <div className="text-6xl mb-4">🛒</div>
+        <h2 className="text-xl font-bold text-gray-900 mb-2">
+          Seu carrinho está vazio
+        </h2>
+        <p className="text-gray-600 mb-6">
+          Adicione alguns itens deliciosos para começar!
+        </p>
+        <button
+          onClick={onBack}
+          className="bg-yellow-500 text-white px-6 py-3 rounded-lg hover:bg-yellow-600 transition-colors font-medium"
+        >
+          Ver Restaurantes
+        </button>
       </div>
     );
   }
 
-  const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const deliveryFee = cartItems[0].restaurant?.deliveryFee || 0;
-  const total = subtotal + deliveryFee;
-  const deliveryAddress = getDeliveryAddress();
-
   return (
-    <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Carrinho</h2>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h3 className="font-bold text-lg mb-4">
-              Pedido de {cartItems[0].restaurant?.name}
-            </h3>
-            
-            <div className="space-y-4">
-              {cartItems.map((item) => (
-                <div key={item._id} className="flex items-center justify-between py-4 border-b border-gray-200 last:border-b-0">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{item.product?.image}</span>
-                    <div>
-                      <h4 className="font-medium text-gray-900">
-                        {item.product?.name}
-                      </h4>
-                      <p className="text-sm text-gray-600">
-                        R$ {item.price.toFixed(2)} cada
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleUpdateQuantity(item._id, item.quantity - 1)}
-                        className="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-gray-600"
-                      >
-                        -
-                      </button>
-                      <span className="w-8 text-center font-medium">
-                        {item.quantity}
-                      </span>
-                      <button
-                        onClick={() => handleUpdateQuantity(item._id, item.quantity + 1)}
-                        className="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-gray-600"
-                      >
-                        +
-                      </button>
-                    </div>
-                    
-                    <div className="text-right min-w-[80px]">
-                      <p className="font-bold text-gray-900">
-                        R$ {(item.price * item.quantity).toFixed(2)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+    <div className="space-y-6">
+      <div className="flex items-center gap-3 mb-6">
+        <button
+          onClick={onBack}
+          className="text-gray-600 hover:text-gray-900"
+        >
+          ← Voltar
+        </button>
+        <h2 className="text-xl font-bold text-gray-900">Carrinho</h2>
+      </div>
+
+      {/* Cart Items */}
+      <div className="bg-white rounded-lg shadow-sm border">
+        <div className="p-4 border-b">
+          <h3 className="font-semibold text-gray-900">Seus Itens</h3>
         </div>
         
-        <div>
-          <div className="bg-white rounded-lg shadow-md p-6 sticky top-24">
-            <h3 className="font-bold text-lg mb-4">Resumo do Pedido</h3>
-            
-            <div className="space-y-2 mb-4">
-              <div className="flex justify-between">
-                <span>Subtotal</span>
-                <span>R$ {subtotal.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Taxa de entrega</span>
-                <span>R$ {deliveryFee.toFixed(2)}</span>
-              </div>
-              <div className="border-t pt-2 flex justify-between font-bold text-lg">
-                <span>Total</span>
-                <span>R$ {total.toFixed(2)}</span>
-              </div>
-            </div>
-            
-            <div className="space-y-4 mb-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Endereço de entrega
-                </label>
-                <div className="p-3 bg-gray-50 rounded-lg border">
-                  {deliveryAddress ? (
-                    <p className="text-sm text-gray-900">{deliveryAddress}</p>
-                  ) : (
-                    <p className="text-sm text-gray-500">
-                      Selecione um endereço de entrega no topo da página
-                    </p>
-                  )}
+        <div className="divide-y">
+          {cartItems.map((item) => (
+            <div key={item._id} className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center text-xl">
+                  🍽️
                 </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Forma de pagamento
-                </label>
-                <select
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                
+                <div className="flex-1">
+                  <h4 className="font-medium text-gray-900">
+                    {item.name || "Produto"}
+                  </h4>
+                  <p className="text-yellow-600 font-semibold">
+                    R$ {item.price.toFixed(2)}
+                  </p>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleUpdateQuantity(item._id, item.quantity - 1)}
+                    className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                  >
+                    -
+                  </button>
+                  <span className="w-8 text-center font-medium">{item.quantity}</span>
+                  <button
+                    onClick={() => handleUpdateQuantity(item._id, item.quantity + 1)}
+                    className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                  >
+                    +
+                  </button>
+                </div>
+                
+                <button
+                  onClick={() => handleRemoveItem(item._id)}
+                  className="text-red-600 hover:text-red-700 ml-2"
                 >
-                  <option value="credit_card">Cartão de Crédito</option>
-                  <option value="debit_card">Cartão de Débito</option>
-                  <option value="pix">PIX</option>
-                  <option value="cash">Dinheiro</option>
-                </select>
+                  🗑️
+                </button>
               </div>
             </div>
-            
-            <button
-              onClick={handleCreateOrder}
-              disabled={isOrdering || !deliveryAddress}
-              className="w-full bg-red-600 text-white py-3 px-4 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
-            >
-              {isOrdering ? "Finalizando..." : "Finalizar Pedido"}
-            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Delivery Address */}
+      <div className="bg-white rounded-lg shadow-sm border p-4">
+        <h3 className="font-semibold text-gray-900 mb-3">Endereço de Entrega</h3>
+        {addresses.length === 0 ? (
+          <p className="text-gray-600 text-sm">
+            Nenhum endereço cadastrado. Adicione um endereço no seu perfil.
+          </p>
+        ) : (
+          <select
+            value={selectedAddress}
+            onChange={(e) => setSelectedAddress(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
+          >
+            <option value="">Selecione um endereço</option>
+            {addresses.map((address) => (
+              <option key={address._id} value={address._id}>
+                {address.label} - {address.street}, {address.number}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
+
+      {/* Payment Method */}
+      <div className="bg-white rounded-lg shadow-sm border p-4">
+        <h3 className="font-semibold text-gray-900 mb-3">Forma de Pagamento</h3>
+        <div className="space-y-2">
+          <label className="flex items-center gap-2">
+            <input
+              type="radio"
+              name="payment"
+              value="credit_card"
+              checked={paymentMethod === "credit_card"}
+              onChange={(e) => setPaymentMethod(e.target.value)}
+              className="text-yellow-600 focus:ring-yellow-500"
+            />
+            <span>💳 Cartão de Crédito</span>
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="radio"
+              name="payment"
+              value="debit_card"
+              checked={paymentMethod === "debit_card"}
+              onChange={(e) => setPaymentMethod(e.target.value)}
+              className="text-yellow-600 focus:ring-yellow-500"
+            />
+            <span>💳 Cartão de Débito</span>
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="radio"
+              name="payment"
+              value="pix"
+              checked={paymentMethod === "pix"}
+              onChange={(e) => setPaymentMethod(e.target.value)}
+              className="text-yellow-600 focus:ring-yellow-500"
+            />
+            <span>📱 PIX</span>
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="radio"
+              name="payment"
+              value="cash"
+              checked={paymentMethod === "cash"}
+              onChange={(e) => setPaymentMethod(e.target.value)}
+              className="text-yellow-600 focus:ring-yellow-500"
+            />
+            <span>💵 Dinheiro</span>
+          </label>
+        </div>
+      </div>
+
+      {/* Order Summary */}
+      <div className="bg-white rounded-lg shadow-sm border p-4">
+        <h3 className="font-semibold text-gray-900 mb-3">Resumo do Pedido</h3>
+        <div className="space-y-2 text-sm">
+          <div className="flex justify-between">
+            <span>Subtotal</span>
+            <span>R$ {subtotal.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Taxa de entrega</span>
+            <span>R$ {deliveryFee.toFixed(2)}</span>
+          </div>
+          <div className="border-t pt-2 flex justify-between font-semibold">
+            <span>Total</span>
+            <span className="text-yellow-600">R$ {total.toFixed(2)}</span>
           </div>
         </div>
       </div>
+
+      {/* Checkout Button */}
+      <button
+        onClick={handleCheckout}
+        disabled={isCheckingOut || !selectedAddress}
+        className="w-full bg-yellow-500 text-white py-4 px-4 rounded-lg hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-lg"
+      >
+        {isCheckingOut ? "Finalizando..." : `Finalizar Pedido - R$ ${total.toFixed(2)}`}
+      </button>
     </div>
   );
 }

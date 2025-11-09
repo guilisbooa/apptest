@@ -1,224 +1,180 @@
-import { Authenticated, Unauthenticated, useQuery } from "convex/react";
-import { api } from "../convex/_generated/api";
-import { AuthForm } from "./components/AuthForm";
-import { Toaster } from "sonner";
 import { useState } from "react";
+import { Authenticated, Unauthenticated, useQuery } from "convex/react";
+import { SignInForm } from "./SignInForm";
+import { SignOutButton } from "./SignOutButton";
+import { api } from "../convex/_generated/api";
 import { RestaurantList } from "./components/RestaurantList";
 import { RestaurantDetail } from "./components/RestaurantDetail";
 import { Cart } from "./components/Cart";
 import { Orders } from "./components/Orders";
-import { SeedData } from "./components/SeedData";
-import { LocationSelector } from "./components/LocationSelector";
-import { ProfileMenu } from "./components/ProfileMenu";
 import { ProfileViews } from "./components/ProfileViews";
+import { SeedData } from "./components/SeedData";
+import { AdminApp } from "./admin/AdminApp";
+
+type View = "restaurants" | "restaurant-detail" | "cart" | "orders" | "profile" | "admin";
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<"restaurants" | "cart" | "orders" | "profile">("restaurants");
-  const [profileView, setProfileView] = useState<"profile" | "orders" | "coupons" | "addresses" | "help" | null>(null);
-  const [selectedRestaurant, setSelectedRestaurant] = useState<string | null>(null);
-  const [showLocationSelector, setShowLocationSelector] = useState(false);
-  const [selectedAddress, setSelectedAddress] = useState<any>(null);
+  const [currentView, setCurrentView] = useState<View>("restaurants");
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState<string>("");
+  const user = useQuery(api.auth.loggedInUser);
+  const cartItems = useQuery(api.cart.getCartItems) || [];
 
-  const handleProfileViewChange = (view: "profile" | "orders" | "coupons" | "addresses" | "help") => {
-    setProfileView(view);
-    setCurrentView("profile");
+  const handleSelectRestaurant = (id: string) => {
+    setSelectedRestaurantId(id);
+    setCurrentView("restaurant-detail");
+  };
+
+  const handleBackToRestaurants = () => {
+    setCurrentView("restaurants");
+    setSelectedRestaurantId("");
+  };
+
+  const cartItemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+
+  const renderContent = () => {
+    switch (currentView) {
+      case "restaurants":
+        return <RestaurantList onSelectRestaurant={handleSelectRestaurant} />;
+      case "restaurant-detail":
+        return (
+          <RestaurantDetail
+            restaurantId={selectedRestaurantId}
+            onBack={handleBackToRestaurants}
+          />
+        );
+      case "cart":
+        return <Cart onBack={() => setCurrentView("restaurants")} />;
+      case "orders":
+        return <Orders />;
+      case "profile":
+        return <ProfileViews />;
+      case "admin":
+        return <AdminApp />;
+      default:
+        return <RestaurantList onSelectRestaurant={handleSelectRestaurant} />;
+    }
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      {/* Mobile-first header */}
-      <header className="sticky top-0 z-10 bg-white border-b shadow-sm">
-        <div className="px-4 h-14 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <h1 
-              className="text-xl font-bold text-red-600 cursor-pointer"
-              onClick={() => {
-                setCurrentView("restaurants");
-                setSelectedRestaurant(null);
-                setProfileView(null);
-              }}
-            >
-              🍔 iFood
-            </h1>
-          </div>
-          
-          <Authenticated>
-            <ProfileMenu onViewChange={handleProfileViewChange} />
-          </Authenticated>
-        </div>
-
-        {/* Location bar - only show when authenticated and not in auth flow */}
-        <Authenticated>
-          <div className="px-4 py-2 bg-gray-50 border-t">
-            <button
-              onClick={() => setShowLocationSelector(true)}
-              className="flex items-center gap-2 text-sm text-gray-700 hover:text-red-600"
-            >
-              <span className="text-red-600">📍</span>
-              <span className="truncate">
-                {selectedAddress 
-                  ? selectedAddress.isCurrentLocation 
-                    ? "Localização atual"
-                    : `${selectedAddress.street}, ${selectedAddress.number}`
-                  : "Escolher endereço de entrega"
-                }
-              </span>
-              <span className="text-gray-400">▼</span>
-            </button>
-          </div>
-        </Authenticated>
-      </header>
-
-      <main className="flex-1">
-        <Content 
-          currentView={currentView}
-          profileView={profileView}
-          selectedRestaurant={selectedRestaurant}
-          selectedAddress={selectedAddress}
-          setSelectedRestaurant={setSelectedRestaurant}
-          setCurrentView={setCurrentView}
-          setProfileView={setProfileView}
-        />
-      </main>
-
-      {/* Mobile bottom navigation */}
-      <Authenticated>
-        <nav className="sticky bottom-0 bg-white border-t">
-          <div className="flex">
-            <button
-              onClick={() => {
-                setCurrentView("restaurants");
-                setSelectedRestaurant(null);
-                setProfileView(null);
-              }}
-              className={`flex-1 py-3 px-2 text-center ${
-                currentView === "restaurants" 
-                  ? "text-red-600 bg-red-50" 
-                  : "text-gray-600"
-              }`}
-            >
-              <div className="text-xl mb-1">🏠</div>
-              <div className="text-xs font-medium">Início</div>
-            </button>
-            <button
-              onClick={() => {
-                setCurrentView("cart");
-                setProfileView(null);
-              }}
-              className={`flex-1 py-3 px-2 text-center ${
-                currentView === "cart" 
-                  ? "text-red-600 bg-red-50" 
-                  : "text-gray-600"
-              }`}
-            >
-              <div className="text-xl mb-1">🛒</div>
-              <div className="text-xs font-medium">Carrinho</div>
-            </button>
-            <button
-              onClick={() => {
-                setCurrentView("orders");
-                setProfileView(null);
-              }}
-              className={`flex-1 py-3 px-2 text-center ${
-                currentView === "orders" 
-                  ? "text-red-600 bg-red-50" 
-                  : "text-gray-600"
-              }`}
-            >
-              <div className="text-xl mb-1">📋</div>
-              <div className="text-xs font-medium">Pedidos</div>
-            </button>
-          </div>
-        </nav>
-      </Authenticated>
-
-      {/* Location Selector Modal */}
-      {showLocationSelector && (
-        <LocationSelector
-          onClose={() => setShowLocationSelector(false)}
-          onAddressSelect={setSelectedAddress}
-        />
-      )}
-      
-      <Toaster />
-    </div>
-  );
-}
-
-function Content({ 
-  currentView, 
-  profileView,
-  selectedRestaurant, 
-  selectedAddress,
-  setSelectedRestaurant,
-  setCurrentView,
-  setProfileView
-}: {
-  currentView: "restaurants" | "cart" | "orders" | "profile";
-  profileView: "profile" | "orders" | "coupons" | "addresses" | "help" | null;
-  selectedRestaurant: string | null;
-  selectedAddress: any;
-  setSelectedRestaurant: (id: string | null) => void;
-  setCurrentView: (view: "restaurants" | "cart" | "orders" | "profile") => void;
-  setProfileView: (view: "profile" | "orders" | "coupons" | "addresses" | "help" | null) => void;
-}) {
-  const userProfile = useQuery(api.users.getProfile);
-
-  if (userProfile === undefined) {
-    return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="px-4 py-4 pb-20">
+    <main className="min-h-screen bg-gray-50">
       <Unauthenticated>
-        <div className="max-w-md mx-auto mt-8">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
-              Bem-vindo ao iFood Clone
-            </h2>
-            <p className="text-gray-600">
-              Faça login para começar a pedir sua comida favorita
-            </p>
+        <div className="min-h-screen bg-gradient-to-br from-yellow-400 via-yellow-500 to-orange-500 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+            <div className="text-center mb-8">
+              <h1 className="text-4xl font-bold text-gray-900 mb-2">
+                🍕 Dooki
+              </h1>
+              <p className="text-gray-600">Sua comida favorita na palma da mão</p>
+            </div>
+            <SignInForm />
           </div>
-          <AuthForm />
         </div>
       </Unauthenticated>
 
       <Authenticated>
-        <SeedData />
-        
-        {currentView === "profile" && profileView ? (
-          <ProfileViews 
-            currentView={profileView}
-            onBack={() => {
-              setCurrentView("restaurants");
-              setProfileView(null);
-            }}
-          />
-        ) : selectedRestaurant ? (
-          <RestaurantDetail 
-            restaurantId={selectedRestaurant}
-            onBack={() => setSelectedRestaurant(null)}
-          />
-        ) : (
-          <>
-            {currentView === "restaurants" && (
-              <RestaurantList onSelectRestaurant={setSelectedRestaurant} />
-            )}
-            {currentView === "cart" && (
-              <Cart 
-                selectedAddress={selectedAddress}
-                onOrderComplete={() => setCurrentView("orders")} 
-              />
-            )}
-            {currentView === "orders" && <Orders />}
-          </>
-        )}
+        <div className="flex flex-col h-screen">
+          {/* Header */}
+          <header className="bg-white shadow-sm border-b sticky top-0 z-40">
+            <div className="px-4 py-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <h1 className="text-2xl font-bold text-gray-900">
+                    🍕 Dooki
+                  </h1>
+                  {user && (
+                    <span className="text-sm text-gray-600">
+                      Olá, {user.name || "Usuário"}!
+                    </span>
+                  )}
+                </div>
+                <SignOutButton />
+              </div>
+            </div>
+          </header>
+
+          {/* Main Content */}
+          <div className="flex-1 flex overflow-hidden">
+            <div className="flex-1 overflow-y-auto">
+              <div className="p-4">
+                <SeedData />
+                {renderContent()}
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Navigation */}
+          <nav className="bg-white border-t sticky bottom-0 z-40">
+            <div className="flex">
+              <button
+                onClick={() => setCurrentView("restaurants")}
+                className={`flex-1 py-3 px-4 text-center transition-colors ${
+                  currentView === "restaurants" || currentView === "restaurant-detail"
+                    ? "text-yellow-600 bg-yellow-50"
+                    : "text-gray-600 hover:text-yellow-600"
+                }`}
+              >
+                <div className="text-xl mb-1">🏪</div>
+                <div className="text-xs font-medium">Restaurantes</div>
+              </button>
+
+              <button
+                onClick={() => setCurrentView("cart")}
+                className={`flex-1 py-3 px-4 text-center transition-colors relative ${
+                  currentView === "cart"
+                    ? "text-yellow-600 bg-yellow-50"
+                    : "text-gray-600 hover:text-yellow-600"
+                }`}
+              >
+                <div className="text-xl mb-1">🛒</div>
+                <div className="text-xs font-medium">Carrinho</div>
+                {cartItemCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-yellow-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                    {cartItemCount}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => setCurrentView("orders")}
+                className={`flex-1 py-3 px-4 text-center transition-colors ${
+                  currentView === "orders"
+                    ? "text-yellow-600 bg-yellow-50"
+                    : "text-gray-600 hover:text-yellow-600"
+                }`}
+              >
+                <div className="text-xl mb-1">📋</div>
+                <div className="text-xs font-medium">Pedidos</div>
+              </button>
+
+              <button
+                onClick={() => setCurrentView("profile")}
+                className={`flex-1 py-3 px-4 text-center transition-colors ${
+                  currentView === "profile"
+                    ? "text-yellow-600 bg-yellow-50"
+                    : "text-gray-600 hover:text-yellow-600"
+                }`}
+              >
+                <div className="text-xl mb-1">👤</div>
+                <div className="text-xs font-medium">Perfil</div>
+              </button>
+
+              {user?.email === "admin@dooki.com" && (
+                <button
+                  onClick={() => setCurrentView("admin")}
+                  className={`flex-1 py-3 px-4 text-center transition-colors ${
+                    currentView === "admin"
+                      ? "text-yellow-600 bg-yellow-50"
+                      : "text-gray-600 hover:text-yellow-600"
+                  }`}
+                >
+                  <div className="text-xl mb-1">🛠️</div>
+                  <div className="text-xs font-medium">Admin</div>
+                </button>
+              )}
+            </div>
+          </nav>
+        </div>
       </Authenticated>
-    </div>
+    </main>
   );
 }

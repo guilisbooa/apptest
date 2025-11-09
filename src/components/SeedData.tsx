@@ -24,7 +24,7 @@ export function SeedData() {
     <div className="mb-6">
       <button
         onClick={handleSeedData}
-        className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+        className="w-full bg-yellow-500 text-white py-3 px-4 rounded-lg hover:bg-yellow-600 transition-colors font-medium"
       >
         🌱 Carregar Dados de Exemplo
       </button>

@@ -17,7 +17,7 @@ export function LocationSelector({ onClose, onAddressSelect }: LocationSelectorP
     return (
       <AddressForm
         address={editingAddress}
-        onClose={() => {
+        onCancel={() => {
           setShowAddressForm(false);
           setEditingAddress(null);
         }}

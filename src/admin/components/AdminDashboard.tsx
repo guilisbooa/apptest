@@ -52,9 +52,9 @@ export function AdminDashboard({ adminUser, onLogout }: AdminDashboardProps) {
         <div className="px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
             <h1 className="text-2xl font-bold text-gray-900">
-              🛠️ Admin Panel
+              🍕 Dooki Admin
             </h1>
-            <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+            <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
               {adminUser.role}
             </span>
           </div>
@@ -82,7 +82,7 @@ export function AdminDashboard({ adminUser, onLogout }: AdminDashboardProps) {
                     onClick={() => setCurrentView(item.id as AdminView)}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
                       currentView === item.id
-                        ? "bg-blue-100 text-blue-700"
+                        ? "bg-yellow-100 text-yellow-700"
                         : "text-gray-700 hover:bg-gray-100"
                     }`}
                   >

@@ -9,7 +9,8 @@ interface ProfileMenuProps {
 
 export function ProfileMenu({ onViewChange }: ProfileMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const userProfile = useQuery(api.users.getProfile);
+  const user = useQuery(api.auth.loggedInUser);
+  const userProfile = useQuery(api.users.getUserProfile);
 
   const menuItems = [
     { id: "profile", label: "Ver perfil", icon: "👤" },
@@ -25,8 +26,8 @@ export function ProfileMenu({ onViewChange }: ProfileMenuProps) {
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 p-2 rounded-full hover:bg-gray-100"
       >
-        <div className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white font-medium">
-          {userProfile?.user?.name?.charAt(0)?.toUpperCase() || "U"}
+        <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center text-white font-medium">
+          {userProfile?.fullName?.charAt(0)?.toUpperCase() || user?.name?.charAt(0)?.toUpperCase() || "U"}
         </div>
       </button>
 
@@ -39,10 +40,10 @@ export function ProfileMenu({ onViewChange }: ProfileMenuProps) {
           <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-lg border z-50">
             <div className="p-4 border-b">
               <p className="font-medium text-gray-900">
-                {userProfile?.profile?.fullName || userProfile?.user?.name || "Usuário"}
+                {userProfile?.fullName || user?.name || "Usuário"}
               </p>
               <p className="text-sm text-gray-600">
-                {userProfile?.user?.email}
+                {user?.email}
               </p>
             </div>
             

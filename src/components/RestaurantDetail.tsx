@@ -34,7 +34,7 @@ export function RestaurantDetail({ restaurantId, onBack }: RestaurantDetailProps
   if (!restaurant || !products) {
     return (
       <div className="flex justify-center items-center min-h-[200px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-600"></div>
       </div>
     );
   }
@@ -126,7 +126,7 @@ export function RestaurantDetail({ restaurantId, onBack }: RestaurantDetailProps
                               <p className="text-sm text-gray-600 mb-2">
                                 {product.description}
                               </p>
-                              <p className="text-lg font-bold text-red-600">
+                              <p className="text-lg font-bold text-yellow-600">
                                 R$ {product.price.toFixed(2)}
                               </p>
                             </div>
@@ -135,7 +135,7 @@ export function RestaurantDetail({ restaurantId, onBack }: RestaurantDetailProps
                           <button
                             onClick={() => handleAddToCart(product)}
                             disabled={!restaurant.isOpen}
-                            className="w-full bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm"
+                            className="w-full bg-yellow-500 text-white py-2 px-4 rounded-lg hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm"
                           >
                             {restaurant.isOpen ? "Adicionar" : "Fechado"}
                           </button>

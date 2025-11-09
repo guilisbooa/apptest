@@ -2,33 +2,36 @@ import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
-export const getCart = query({
+// Get user's cart items
+export const getCartItems = query({
   args: {},
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) return [];
+    if (!userId) {
+      return [];
+    }
 
     const cartItems = await ctx.db
       .query("cartItems")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
-    const itemsWithDetails = await Promise.all(
+    // Get product details for each cart item
+    const cartItemsWithDetails = await Promise.all(
       cartItems.map(async (item) => {
         const product = await ctx.db.get(item.productId);
-        const restaurant = await ctx.db.get(item.restaurantId);
         return {
           ...item,
-          product,
-          restaurant,
+          name: product?.name || "Produto",
         };
       })
     );
 
-    return itemsWithDetails;
+    return cartItemsWithDetails;
   },
 });
 
+// Add item to cart
 export const addToCart = mutation({
   args: {
     productId: v.id("products"),
@@ -38,7 +41,9 @@ export const addToCart = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("User not authenticated");
+    if (!userId) {
+      throw new Error("User not authenticated");
+    }
 
     // Check if item already exists in cart
     const existingItem = await ctx.db
@@ -65,6 +70,7 @@ export const addToCart = mutation({
   },
 });
 
+// Update item quantity
 export const updateQuantity = mutation({
   args: {
     itemId: v.id("cartItems"),
@@ -72,23 +78,49 @@ export const updateQuantity = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("User not authenticated");
-
-    if (args.quantity <= 0) {
-      await ctx.db.delete(args.itemId);
-    } else {
-      await ctx.db.patch(args.itemId, {
-        quantity: args.quantity,
-      });
+    if (!userId) {
+      throw new Error("User not authenticated");
     }
+
+    const item = await ctx.db.get(args.itemId);
+    if (!item || item.userId !== userId) {
+      throw new Error("Item not found or unauthorized");
+    }
+
+    await ctx.db.patch(args.itemId, {
+      quantity: args.quantity,
+    });
   },
 });
 
+// Remove item from cart
+export const removeFromCart = mutation({
+  args: {
+    itemId: v.id("cartItems"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("User not authenticated");
+    }
+
+    const item = await ctx.db.get(args.itemId);
+    if (!item || item.userId !== userId) {
+      throw new Error("Item not found or unauthorized");
+    }
+
+    await ctx.db.delete(args.itemId);
+  },
+});
+
+// Clear entire cart
 export const clearCart = mutation({
   args: {},
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("User not authenticated");
+    if (!userId) {
+      throw new Error("User not authenticated");
+    }
 
     const cartItems = await ctx.db
       .query("cartItems")

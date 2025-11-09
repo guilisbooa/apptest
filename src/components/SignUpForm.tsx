@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 export function SignUpForm({ onBackToSignIn }: { onBackToSignIn: () => void }) {
   const { signIn } = useAuthActions();
-  const createProfile = useMutation(api.users.createProfile);
+  const updateProfile = useMutation(api.users.updateUserProfile);
   
   const [formData, setFormData] = useState({
     fullName: "",
@@ -117,7 +117,7 @@ export function SignUpForm({ onBackToSignIn }: { onBackToSignIn: () => void }) {
       });
 
       // Then create the user profile
-      await createProfile({
+      await updateProfile({
         fullName: formData.fullName,
         birthDate: formData.birthDate,
         cpf: formData.cpf,

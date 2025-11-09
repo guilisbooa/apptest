@@ -5,15 +5,11 @@ import { toast } from "sonner";
 
 interface AddressFormProps {
   address?: any;
-  onClose: () => void;
   onSave: () => void;
+  onCancel: () => void;
 }
 
-export function AddressForm({ address, onClose, onSave }: AddressFormProps) {
-  const addAddress = useMutation(api.addresses.addAddress);
-  const updateAddress = useMutation(api.addresses.updateAddress);
-  const deleteAddress = useMutation(api.addresses.deleteAddress);
-  
+export function AddressForm({ address, onSave, onCancel }: AddressFormProps) {
   const [formData, setFormData] = useState({
     street: address?.street || "",
     number: address?.number || "",
@@ -22,27 +18,16 @@ export function AddressForm({ address, onClose, onSave }: AddressFormProps) {
     city: address?.city || "",
     state: address?.state || "",
     zipCode: address?.zipCode || "",
-    label: address?.label || "Casa",
+    label: address?.label || "",
     isDefault: address?.isDefault || false,
   });
-  const [isLoading, setIsLoading] = useState(false);
 
-  const formatZipCode = (value: string) => {
-    const numbers = value.replace(/\D/g, "");
-    return numbers.replace(/(\d{5})(\d{3})/, "$1-$2");
-  };
-
-  const handleInputChange = (field: string, value: string | boolean) => {
-    if (field === "zipCode" && typeof value === "string") {
-      value = formatZipCode(value);
-    }
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
+  const addAddress = useMutation(api.addresses.addAddress);
+  const updateAddress = useMutation(api.addresses.updateAddress);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-
+    
     try {
       if (address) {
         await updateAddress({
@@ -55,61 +40,33 @@ export function AddressForm({ address, onClose, onSave }: AddressFormProps) {
         toast.success("Endereço adicionado com sucesso!");
       }
       onSave();
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao salvar endereço");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!address) return;
-    
-    if (confirm("Tem certeza que deseja excluir este endereço?")) {
-      setIsLoading(true);
-      try {
-        await deleteAddress({ addressId: address._id });
-        toast.success("Endereço excluído com sucesso!");
-        onSave();
-      } catch (error: any) {
-        toast.error(error.message || "Erro ao excluir endereço");
-      } finally {
-        setIsLoading(false);
-      }
+    } catch (error) {
+      toast.error("Erro ao salvar endereço");
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end sm:items-center justify-center">
-      <div className="bg-white w-full sm:max-w-md sm:rounded-lg max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b px-4 py-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">
-            {address ? "Editar Endereço" : "Novo Endereço"}
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full"
-          >
-            ✕
-          </button>
+    <div className="bg-white rounded-lg p-6 shadow-sm border">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">
+        {address ? "Editar Endereço" : "Novo Endereço"}
+      </h3>
+      
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Apelido do Endereço
+          </label>
+          <input
+            type="text"
+            value={formData.label}
+            onChange={(e) => setFormData(prev => ({ ...prev, label: e.target.value }))}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
+            placeholder="Casa, Trabalho, etc."
+            required
+          />
         </div>
 
-        <form onSubmit={handleSubmit} className="p-4 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Tipo de endereço
-            </label>
-            <select
-              value={formData.label}
-              onChange={(e) => handleInputChange("label", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
-            >
-              <option value="Casa">🏠 Casa</option>
-              <option value="Trabalho">🏢 Trabalho</option>
-              <option value="Outro">📍 Outro</option>
-            </select>
-          </div>
-
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               CEP
@@ -117,56 +74,54 @@ export function AddressForm({ address, onClose, onSave }: AddressFormProps) {
             <input
               type="text"
               value={formData.zipCode}
-              onChange={(e) => handleInputChange("zipCode", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+              onChange={(e) => setFormData(prev => ({ ...prev, zipCode: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
               placeholder="00000-000"
-              maxLength={9}
               required
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Rua
-              </label>
-              <input
-                type="text"
-                value={formData.street}
-                onChange={(e) => handleInputChange("street", e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
-                placeholder="Nome da rua"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Número
-              </label>
-              <input
-                type="text"
-                value={formData.number}
-                onChange={(e) => handleInputChange("number", e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
-                placeholder="123"
-                required
-              />
-            </div>
-          </div>
-
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Complemento (opcional)
+              Número
             </label>
             <input
               type="text"
-              value={formData.complement}
-              onChange={(e) => handleInputChange("complement", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
-              placeholder="Apto, bloco, etc."
+              value={formData.number}
+              onChange={(e) => setFormData(prev => ({ ...prev, number: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
+              required
             />
           </div>
+        </div>
 
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Rua
+          </label>
+          <input
+            type="text"
+            value={formData.street}
+            onChange={(e) => setFormData(prev => ({ ...prev, street: e.target.value }))}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Complemento
+          </label>
+          <input
+            type="text"
+            value={formData.complement}
+            onChange={(e) => setFormData(prev => ({ ...prev, complement: e.target.value }))}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
+            placeholder="Apartamento, bloco, etc."
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Bairro
@@ -174,77 +129,70 @@ export function AddressForm({ address, onClose, onSave }: AddressFormProps) {
             <input
               type="text"
               value={formData.neighborhood}
-              onChange={(e) => handleInputChange("neighborhood", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
-              placeholder="Nome do bairro"
+              onChange={(e) => setFormData(prev => ({ ...prev, neighborhood: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
               required
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Cidade
-              </label>
-              <input
-                type="text"
-                value={formData.city}
-                onChange={(e) => handleInputChange("city", e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
-                placeholder="Cidade"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Estado
-              </label>
-              <input
-                type="text"
-                value={formData.state}
-                onChange={(e) => handleInputChange("state", e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
-                placeholder="SP"
-                maxLength={2}
-                required
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Cidade
+            </label>
+            <input
+              type="text"
+              value={formData.city}
+              onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
+              required
+            />
           </div>
+        </div>
 
-          <div className="flex items-center">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Estado
+          </label>
+          <input
+            type="text"
+            value={formData.state}
+            onChange={(e) => setFormData(prev => ({ ...prev, state: e.target.value }))}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none"
+            placeholder="SP"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="flex items-center gap-2">
             <input
               type="checkbox"
-              id="isDefault"
               checked={formData.isDefault}
-              onChange={(e) => handleInputChange("isDefault", e.target.checked)}
-              className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+              onChange={(e) => setFormData(prev => ({ ...prev, isDefault: e.target.checked }))}
+              className="rounded border-gray-300 text-yellow-600 focus:ring-yellow-500"
             />
-            <label htmlFor="isDefault" className="ml-2 text-sm text-gray-700">
+            <span className="text-sm font-medium text-gray-700">
               Definir como endereço padrão
-            </label>
-          </div>
+            </span>
+          </label>
+        </div>
 
-          <div className="flex gap-3 pt-4">
-            {address && (
-              <button
-                type="button"
-                onClick={handleDelete}
-                disabled={isLoading}
-                className="flex-1 px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50"
-              >
-                Excluir
-              </button>
-            )}
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
-            >
-              {isLoading ? "Salvando..." : "Salvar"}
-            </button>
-          </div>
-        </form>
-      </div>
+        <div className="flex gap-3 pt-4">
+          <button
+            type="submit"
+            className="flex-1 bg-yellow-500 text-white py-2 px-4 rounded-lg hover:bg-yellow-600 transition-colors font-medium"
+          >
+            Salvar
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors font-medium"
+          >
+            Cancelar
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
