@@ -11,6 +11,9 @@ import { ProfileViews } from "./components/ProfileViews";
 import { SeedData } from "./components/SeedData";
 import { AdminApp } from "./admin/AdminApp";
 
+// ✅ Importa a logo
+import logo from "./assets/logo-dooki2.png";
+
 type View = "restaurants" | "restaurant-detail" | "cart" | "orders" | "profile" | "admin";
 
 export default function App() {
@@ -57,20 +60,30 @@ export default function App() {
 
   return (
     <main className="min-h-screen bg-gray-50">
+      {/* Tela de login */}
       <Unauthenticated>
         <div className="min-h-screen bg-gradient-to-br from-yellow-400 via-yellow-500 to-orange-500 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
             <div className="text-center mb-8">
-              <h1 className="text-4xl font-bold text-gray-900 mb-2">
-                🍕 Dooki
-              </h1>
-              <p className="text-gray-600">Sua comida favorita na palma da mão</p>
+              {/* ✅ Logo no login */}
+              <div className="flex justify-center mb-4">
+                <img
+                  src={logo}
+                  alt="Logo Dooki"
+                  className="h-16 w-auto mx-auto select-none"
+                  draggable={false}
+                />
+              </div>
+              <p className="text-gray-600">
+                Sua comida favorita na palma da mão
+              </p>
             </div>
             <SignInForm />
           </div>
         </div>
       </Unauthenticated>
 
+      {/* Área autenticada */}
       <Authenticated>
         <div className="flex flex-col h-screen">
           {/* Header */}
@@ -78,9 +91,15 @@ export default function App() {
             <div className="px-4 py-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <h1 className="text-2xl font-bold text-gray-900">
-                    🍕 Dooki
-                  </h1>
+                  {/* ✅ Logo no header */}
+                  <a href="/" aria-label="Ir para página inicial">
+                    <img
+                      src={logo}
+                      alt="Logo Dooki"
+                      className="h-10 w-auto select-none"
+                      draggable={false}
+                    />
+                  </a>
                   {user && (
                     <span className="text-sm text-gray-600">
                       Olá, {user.name || "Usuário"}!
@@ -92,7 +111,7 @@ export default function App() {
             </div>
           </header>
 
-          {/* Main Content */}
+          {/* Conteúdo principal */}
           <div className="flex-1 flex overflow-hidden">
             <div className="flex-1 overflow-y-auto">
               <div className="p-4">
@@ -102,7 +121,7 @@ export default function App() {
             </div>
           </div>
 
-          {/* Bottom Navigation */}
+          {/* Navegação inferior */}
           <nav className="bg-white border-t sticky bottom-0 z-40">
             <div className="flex">
               <button
